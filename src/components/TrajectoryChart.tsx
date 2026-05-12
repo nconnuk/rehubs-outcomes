@@ -9,6 +9,9 @@ import { useFilteredPatients } from '@/lib/filterStore'
 import { getTrajectoryData } from '@/lib/calculations'
 import { EmptyState } from './EmptyState'
 
+// TEA is excluded: it is a 0–10 engagement score (higher = better) and
+// cannot share a y-axis with symptom severity scores (lower = better).
+// TEA is displayed in its own dedicated card.
 const LINES = [
   { key: 'gad7',   label: 'GAD-7',   color: '#9333EA' },
   { key: 'phq9',   label: 'PHQ-9',   color: '#C84BB2' },
@@ -29,7 +32,7 @@ export function TrajectoryChart() {
           <h3 className="font-serif font-medium text-[17px] tracking-[-0.2px]">
             Symptom <em className="gradient-text not-italic">trajectory</em> · all timepoints
           </h3>
-          <p className="text-[11.5px] text-ink-400 mt-0.5">Normalised score 0–100 (lower = better except TEA)</p>
+          <p className="text-[11.5px] text-ink-400 mt-0.5">Normalised 0–100% of max score — lower = better, line going down = improvement</p>
         </div>
       </div>
 

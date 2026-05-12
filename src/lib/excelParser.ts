@@ -102,20 +102,35 @@ for (const [fieldKey, synonyms] of Object.entries(SYNONYMS)) {
   for (const s of synonyms) SYNONYM_LOOKUP[s] = fieldKey
 }
 
+// ── Columns that are pre-computed helpers — never ingest these ────────────────
+// Matches if the raw header contains %, Δ, or any of these substrings after normalisation
+const HELPER_NORM_PATTERNS = ['imp', 'pct', 'chng', 'chg', 'change', 'delta', 'diff', 'percent']
+
+function isHelperColumn(rawHeader: string): boolean {
+  if (rawHeader.includes('%') || rawHeader.includes('Δ') || rawHeader.includes('δ')) return true
+  const n = norm(rawHeader)
+  return HELPER_NORM_PATTERNS.some(p => n.includes(p))
+}
+
 // ── Score a column header against the synonym table ───────────────────────────
 function matchColumn(rawHeader: string): string | null {
+  if (isHelperColumn(rawHeader)) return null   // skip Δ, % Imp., etc.
   const n = norm(rawHeader)
   if (!n) return null
+
   // Exact match in lookup
   if (SYNONYM_LOOKUP[n]) return SYNONYM_LOOKUP[n]!
-  // Substring match
+
+  // Substring match: header must CONTAIN the synonym (not the other way round).
+  // Require synonym length >= 5 to avoid short tokens like "gad7" matching everything.
   for (const [syn, field] of Object.entries(SYNONYM_LOOKUP)) {
-    if (n.includes(syn) || syn.includes(n)) return field
+    if (syn.length >= 5 && n.includes(syn)) return field
   }
-  // Levenshtein ≤ 2 fallback (only on reasonably long strings)
-  if (n.length >= 4) {
+
+  // Levenshtein ≤ 2 fallback (only on strings of similar length)
+  if (n.length >= 5) {
     for (const [syn, field] of Object.entries(SYNONYM_LOOKUP)) {
-      if (Math.abs(n.length - syn.length) <= 2 && lev(n, syn) <= 2) return field
+      if (syn.length >= 5 && Math.abs(n.length - syn.length) <= 2 && lev(n, syn) <= 2) return field
     }
   }
   return null

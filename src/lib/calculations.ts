@@ -231,21 +231,15 @@ export interface TrajectoryPoint {
 }
 
 export function getTrajectoryData(patients: Patient[]): TrajectoryPoint[] {
-  // Primary timepoints always included; secondary only when data exists
-  const PRIMARY:   { tp: Timepoint; label: string }[] = [
-    { tp: 'intake', label: 'Intake' },
-    { tp: 'day28',  label: 'Day 28' },
-  ]
-  const SECONDARY: { tp: Timepoint; label: string }[] = [
-    { tp: 'week2', label: 'Week 2' },
-    { tp: '3m',    label: '3 Months' },
-    { tp: '6m',    label: '6 Months' },
-    { tp: '12m',   label: '12 Months' },
-  ]
-
+  // Correct clinical order: Intake → Week 2 (check-in) → Day 28 → 3m → 6m → 12m
+  // Primary timepoints always rendered; secondary only when data exists in the cohort.
   const ALL: { tp: Timepoint; label: string; primary: boolean }[] = [
-    ...PRIMARY.map(x => ({ ...x, primary: true })),
-    ...SECONDARY.map(x => ({ ...x, primary: false })),
+    { tp: 'intake', label: 'Intake',    primary: true  },
+    { tp: 'week2',  label: 'Week 2',    primary: false },
+    { tp: 'day28',  label: 'Day 28',    primary: true  },
+    { tp: '3m',     label: '3 Months',  primary: false },
+    { tp: '6m',     label: '6 Months',  primary: false },
+    { tp: '12m',    label: '12 Months', primary: false },
   ]
 
   return ALL.flatMap(({ tp, label, primary }) => {
