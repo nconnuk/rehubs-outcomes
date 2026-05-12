@@ -44,56 +44,26 @@ function norm(s: string): string {
 }
 
 // ── Column synonym table ──────────────────────────────────────────────────────
+// Non-clinical synonyms only — clinical columns are matched by matchClinicalColumn()
+// using suffix-based rules which are immune to delta/pct helper-column contamination.
 const SYNONYMS: Record<string, string[]> = {
-  // Demographics
-  patientId:     ['patientid', 'patient', 'id', 'subjectid', 'clientid', 'ref', 'reference', 'patno'],
-  dob:           ['dob', 'dateofbirth', 'birthdate', 'dateofbirth'],
-  age:           ['age', 'ageyears'],
-  ageBand:       ['ageband', 'agegroup', 'agebracket', 'agerange'],
-  gender:        ['gender', 'sex'],
-  ethnicity:     ['ethnicity', 'ethnicgroup', 'race', 'ethncity', 'ehtnicity'],
-  religion:      ['religion'],
-  therapist:     ['therapist', 'clinician', 'worker', 'caseworker', 'keyworker'],
-  referralSource:['referralsource', 'referral', 'referredby'],
-  programme:     ['programme', 'program', 'programmename'],
-  device:        ['device', 'devicetype'],
-  // Funder
-  funder:        ['funder', 'funding', 'fundingsource', 'payer', 'insurer', 'sponsor', 'payersource'],
-  // Outcome / completion
+  patientId:       ['patientid', 'patient', 'id', 'subjectid', 'clientid', 'ref', 'reference', 'patno'],
+  dob:             ['dob', 'dateofbirth', 'birthdate'],
+  age:             ['age', 'ageyears'],
+  ageBand:         ['ageband', 'agegroup', 'agebracket', 'agerange'],
+  gender:          ['gender', 'sex'],
+  ethnicity:       ['ethnicity', 'ethnicgroup', 'race', 'ethncity', 'ehtnicity'],
+  religion:        ['religion'],
+  therapist:       ['therapist', 'clinician', 'worker', 'caseworker', 'keyworker'],
+  referralSource:  ['referralsource', 'referral', 'referredby'],
+  programme:       ['programme', 'program', 'programmename'],
+  device:          ['device', 'devicetype'],
+  funder:          ['funder', 'funding', 'fundingsource', 'payer', 'insurer', 'sponsor', 'payersource'],
   completionStatus:['completionstatus', 'status', 'outcome', 'completion', 'disposition', 'dischargestatus'],
-  // Substance
-  substance:     ['substance', 'primarysubstance', 'substanceclass', 'drug', 'drugofchoice', 'mainsubstance', 'primarydrug'],
-  // Dates
-  startDate:     ['startdate', 'admissiondate', 'dateofadmission', 'intakedate', 'admdate', 'enrolmentdate'],
-  dischargeDate: ['dischargedate', 'dateofdischarge', 'dischdate', 'enddate', 'completiondate'],
-  date6m:        ['6monthfollowupdate', '6mfollowup', 'sixmonthdate', 'followup6m', '6mdate'],
-  // GAD-7 timepoints
-  gad7Intake:    ['gad7w1', 'gad7wk1', 'gad7week1', 'gad7start', 'gad7intake', 'gad7pre', 'gad7w1score'],
-  gad7Week2:     ['gad7w2', 'gad7wk2', 'gad7week2', 'gad7mid', 'gad7check'],
-  gad7Day28:     ['gad7w4', 'gad7wk4', 'gad7week4', 'gad7end', 'gad7day28', 'gad7discharge', 'gad7post', 'gad7w4score'],
-  gad7Month6:    ['gad76m', 'gad7month6', 'gad76month', 'gad7followup', 'gad76mfollowup'],
-  gad7Month12:   ['gad712m', 'gad7month12', 'gad712month', 'gad712mfollowup'],
-  // PHQ-9
-  phq9Intake:    ['phq9w1', 'phq9wk1', 'phq9week1', 'phq9start', 'phq9intake', 'phq9pre', 'phq9w1score'],
-  phq9Week2:     ['phq9w2', 'phq9wk2', 'phq9week2', 'phq9mid'],
-  phq9Day28:     ['phq9w4', 'phq9wk4', 'phq9week4', 'phq9end', 'phq9day28', 'phq9discharge', 'phq9post', 'phq9w4score'],
-  phq9Month6:    ['phq96m', 'phq9month6', 'phq96mfollowup'],
-  phq9Month12:   ['phq912m', 'phq9month12'],
-  // CORE-10
-  core10Intake:  ['core10w1', 'corw1', 'core10wk1', 'core10week1', 'core10start', 'core10intake', 'core10pre', 'corw1score'],
-  core10Week2:   ['core10w2', 'corw2', 'core10wk2', 'core10week2', 'core10mid'],
-  core10Day28:   ['core10w4', 'corw4', 'core10wk4', 'core10week4', 'core10end', 'core10day28', 'core10discharge', 'core10post', 'corw4score'],
-  core10Month6:  ['core106m', 'core10month6', 'core106mfollowup'],
-  core10Month12: ['core1012m', 'core10month12'],
-  // TOPS
-  topsIntake:    ['topsstart', 'topsw1', 'topspre', 'tops', 'topsdays', 'topsdayspre', 'topsstart'],
-  topsDay28:     ['topsend', 'topsw4', 'topspost', 'topsdayspost', 'tops28d', 'topsdischarge'],
-  // TEA (intake only in this file layout)
-  teaSubstance:  ['teasubst', 'teasubstance', 'teasubstanceuse', 'teasub'],
-  teaHealth:     ['teahealth', 'teahealt'],
-  teaLifestyle:  ['tealifestyle', 'tealife'],
-  teaCommunity:  ['teacommunity', 'teacomm'],
-  teaAvg:        ['teaavg', 'teaverage', 'teamean', 'teatotal'],
+  substance:       ['substance', 'primarysubstance', 'substanceclass', 'drug', 'drugofchoice', 'mainsubstance'],
+  startDate:       ['startdate', 'admissiondate', 'dateofadmission', 'intakedate', 'admdate', 'enrolmentdate'],
+  dischargeDate:   ['dischargedate', 'dateofdischarge', 'dischdate'],
+  date6m:          ['6monthfollowupdate', '6mfollowup', 'sixmonthdate', 'followup6m', '6mdate'],
 }
 
 // Build reverse lookup: normalisedSynonym → field key
@@ -102,32 +72,82 @@ for (const [fieldKey, synonyms] of Object.entries(SYNONYMS)) {
   for (const s of synonyms) SYNONYM_LOOKUP[s] = fieldKey
 }
 
-// ── Columns that are pre-computed helpers — never ingest these ────────────────
-// Matches if the raw header contains %, Δ, or any of these substrings after normalisation
-const HELPER_NORM_PATTERNS = ['imp', 'pct', 'chng', 'chg', 'change', 'delta', 'diff', 'percent']
+// ── Hard-reject helper/computed columns ──────────────────────────────────────
+// Catches % sign and ALL common delta Unicode variants before normalisation:
+//   Δ U+0394 (Greek capital delta), ∆ U+2206 (Increment), δ U+03B4 (lowercase delta)
+// Also rejects any column whose normalised form ends with a helper keyword.
+const HELPER_CHAR_RE = /[%\u0394\u2206\u03B4]/
+const HELPER_SUFFIX_RE = /imp(?:rov(?:ement)?)?$|improv$|pct$|percent$|chng$|chg$|change$|delta$|diff$/
 
 function isHelperColumn(rawHeader: string): boolean {
-  if (rawHeader.includes('%') || rawHeader.includes('Δ') || rawHeader.includes('δ')) return true
-  const n = norm(rawHeader)
-  return HELPER_NORM_PATTERNS.some(p => n.includes(p))
+  if (HELPER_CHAR_RE.test(rawHeader)) return true
+  return HELPER_SUFFIX_RE.test(norm(rawHeader))
 }
 
-// ── Score a column header against the synonym table ───────────────────────────
+// ── Suffix-based clinical column matching ─────────────────────────────────────
+// Clinical columns MUST end with an explicit timepoint suffix.
+// "GAD-7 Δ" → normalises to "gad7" → no valid suffix → returns null (rejected).
+// "GAD-7 W1" → "gad7w1" → ends with "w1" → returns "gad7Intake". ✓
+// Verified against full column list by test-column-mapping.js before every deploy.
+const TP_W1  = /w1$|wk1$|week1$|intake$|start$|pre$|baseline$|t0$|w1score$/
+const TP_W2  = /w2$|wk2$|week2$|mid$|t2$|wk2score$/
+const TP_W4  = /w4$|wk4$|week4$|day28$|d28$|discharge$|end$|post$|t4$|w4score$/
+const TP_6M  = /6m$|month6$|m6$|6month$|sixmonth$|6mfollowup$|followup6$/
+const TP_12M = /12m$|month12$|m12$|12month$/
+const TOPS_W1 = /start$|w1$|pre$|intake$|begin$/
+const TOPS_W4 = /end$|w4$|post$|discharge$|finish$/
+
+const CLINICAL_PREFIX_RE: Array<{ re: RegExp; key: string }> = [
+  { re: /^gad7/,                              key: 'gad7'    },
+  { re: /^phq9/,                              key: 'phq9'    },
+  { re: /^core10|^cor10/,                     key: 'core10'  },
+  { re: /^tops/,                              key: 'tops'    },
+  { re: /^teasubst/,                          key: 'teaSub'  },
+  { re: /^teahealth/,                         key: 'teaHlth' },
+  { re: /^tealife/,                           key: 'teaLife' },
+  { re: /^teacomm/,                           key: 'teaComm' },
+  { re: /^teaavg|^teamean|^teavg|^teatotal/,  key: 'teaAvg'  },
+]
+
+function matchClinicalColumn(n: string): string | null {
+  for (const { re, key } of CLINICAL_PREFIX_RE) {
+    if (!re.test(n)) continue
+    if (key === 'teaSub')  return 'teaSubstance'
+    if (key === 'teaHlth') return 'teaHealth'
+    if (key === 'teaLife') return 'teaLifestyle'
+    if (key === 'teaComm') return 'teaCommunity'
+    if (key === 'teaAvg')  return 'teaAvg'
+    if (key === 'tops') {
+      if (TOPS_W1.test(n)) return 'topsIntake'
+      if (TOPS_W4.test(n)) return 'topsDay28'
+      return null  // "TOPS" alone or "TOPS Δ" → reject
+    }
+    // GAD-7, PHQ-9, CORE-10 — require explicit timepoint suffix
+    if (TP_W1.test(n))  return key + 'Intake'
+    if (TP_W2.test(n))  return key + 'Week2'
+    if (TP_W4.test(n))  return key + 'Day28'
+    if (TP_6M.test(n))  return key + 'Month6'
+    if (TP_12M.test(n)) return key + 'Month12'
+    return null  // has clinical prefix but no valid timepoint suffix → reject
+  }
+  return null
+}
+
+// ── Column matching: clinical first, then non-clinical synonyms ───────────────
 function matchColumn(rawHeader: string): string | null {
-  if (isHelperColumn(rawHeader)) return null   // skip Δ, % Imp., etc.
+  if (isHelperColumn(rawHeader)) return null
   const n = norm(rawHeader)
   if (!n) return null
 
-  // Exact match in lookup
-  if (SYNONYM_LOOKUP[n]) return SYNONYM_LOOKUP[n]!
+  // Clinical columns use suffix-based matching (most precise, no false positives)
+  const clinical = matchClinicalColumn(n)
+  if (clinical !== null) return clinical
 
-  // Substring match: header must CONTAIN the synonym (not the other way round).
-  // Require synonym length >= 5 to avoid short tokens like "gad7" matching everything.
+  // Non-clinical: exact match first, then length-gated substring, then Levenshtein
+  if (SYNONYM_LOOKUP[n]) return SYNONYM_LOOKUP[n]!
   for (const [syn, field] of Object.entries(SYNONYM_LOOKUP)) {
     if (syn.length >= 5 && n.includes(syn)) return field
   }
-
-  // Levenshtein ≤ 2 fallback (only on strings of similar length)
   if (n.length >= 5) {
     for (const [syn, field] of Object.entries(SYNONYM_LOOKUP)) {
       if (syn.length >= 5 && Math.abs(n.length - syn.length) <= 2 && lev(n, syn) <= 2) return field
