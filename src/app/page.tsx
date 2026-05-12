@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useFilterStore } from '@/lib/filterStore'
 import { Header }           from '@/components/Header'
 import { DropZone }         from '@/components/DropZone'
+import { DataLibrary }      from '@/components/DataLibrary'
 import { FilterBar }        from '@/components/FilterBar'
 import { ImprovementBanner } from '@/components/ImprovementBanner'
 import { KpiRow }           from '@/components/KpiRow'
@@ -17,9 +18,20 @@ import { FunderMix }        from '@/components/FunderMix'
 import { ReportModal }      from '@/components/ReportModal'
 
 export default function Home() {
-  const [reportOpen, setReportOpen] = useState(false)
+  const [reportOpen,       setReportOpen]       = useState(false)
+  const [reportGenerated,  setReportGenerated]  = useState(false)
+
   const totalPatients = useFilterStore(s => s.dataset.length)
-  const hasData = totalPatients > 0
+  const loadFromDb    = useFilterStore(s => s.loadFromDb)
+  const hasData       = totalPatients > 0
+
+  // Hydrate from IndexedDB on mount
+  useEffect(() => { loadFromDb() }, [loadFromDb])
+
+  const handleOpenReport = () => {
+    setReportOpen(true)
+    setReportGenerated(true)
+  }
 
   return (
     <div className="min-h-screen bg-paper">
@@ -45,9 +57,9 @@ export default function Home() {
           {/* Quick stats */}
           <div className="flex gap-7 justify-end flex-wrap max-[700px]:justify-start">
             {[
-              { n: hasData ? totalPatients.toLocaleString() : '—', suffix: '', label: 'Patients loaded' },
-              { n: hasData ? '5' : '—', suffix: '', label: 'Clinical measures' },
-              { n: '12', suffix: '', label: 'Active filters' },
+              { n: hasData ? totalPatients.toLocaleString() : '—', suffix: '', label: 'Patients in library' },
+              { n: hasData ? '5' : '—',  suffix: '', label: 'Clinical measures' },
+              { n: '12',                  suffix: '', label: 'Active filters' },
             ].map(stat => (
               <div key={stat.label} className="text-right max-[700px]:text-left">
                 <p className="font-serif text-[30px] tracking-[-0.7px] leading-none">
@@ -61,15 +73,29 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Upload zone ── */}
-      <div className="px-8 pt-6 pb-0">
+      {/* ── Upload zone + Library ── */}
+      <div className="px-8 pt-6 pb-0 flex flex-col gap-4">
         <DropZone />
+        <DataLibrary />
       </div>
 
       {/* ── Filter bar ── */}
       <div className="px-8 pt-[18px]">
-        <FilterBar onGenerateReport={() => setReportOpen(true)} />
+        <FilterBar onGenerateReport={handleOpenReport} />
       </div>
+
+      {/* ── "Generate another report" — shown only after first report ── */}
+      {reportGenerated && !reportOpen && hasData && (
+        <div className="px-8 pt-3">
+          <button
+            type="button"
+            onClick={handleOpenReport}
+            className="text-[12.5px] font-medium text-grad-purple-deep hover:underline"
+          >
+            ↺ Generate another report with current filters
+          </button>
+        </div>
+      )}
 
       {/* ── Dashboard ── */}
       <div className="px-8 pt-7 pb-10 flex flex-col gap-[18px]">

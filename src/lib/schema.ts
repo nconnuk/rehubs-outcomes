@@ -1,6 +1,6 @@
 export type Programme = 'Addiction' | 'Family Group' | 'Weight Management'
 export type Gender = 'Male' | 'Female' | 'Other' | 'Prefer not to say'
-export type Timepoint = 'intake' | 'day28' | '3m' | '6m' | '12m'
+export type Timepoint = 'intake' | 'week2' | 'day28' | '3m' | '6m' | '12m'
 
 export interface Assessment {
   timepoint: Timepoint

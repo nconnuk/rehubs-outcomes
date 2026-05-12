@@ -8,7 +8,6 @@ import { EmptyState } from './EmptyState'
 const SPARKLINE_COLORS = ['#9333EA', '#C84BB2', '#E76A85', '#F4A93A', '#5C8A6B']
 
 function Sparkline({ color, improvement }: { color: string; improvement: number }) {
-  // Simple 5-point sparkline trend: starts high, ends lower (or higher for TEA)
   const base = 70
   const end  = Math.max(5, base - improvement * 0.5)
   const pts  = [base, base * 0.9, base * 0.7, base * 0.5, end]
@@ -63,28 +62,33 @@ export function KpiRow() {
           {kpi.hasData ? (
             <>
               <div className="flex items-baseline gap-0.5">
-                <span
-                  className="font-serif text-[38px] tracking-[-1.2px] leading-none gradient-text"
-                  style={{ fontSize: '38px' }}
-                >
+                <span className="font-serif text-[38px] tracking-[-1.2px] leading-none gradient-text">
                   {kpi.improvement}
                 </span>
                 <span className="font-sans text-[16px] font-medium text-grad-purple-deep">%</span>
               </div>
 
-              <div className="mt-2.5 flex items-center gap-2.5 text-[11px]">
-                <div className="flex items-center gap-1 font-mono text-ink-500">
-                  <span className="text-ink-400">{kpi.preScore}{kpi.unit}</span>
-                  <span className="text-ink-300 text-[10px]">→</span>
-                  <span className="text-ink-900 font-medium">{kpi.postScore}{kpi.unit}</span>
-                </div>
+              {/* W1 → Day 28 detail */}
+              <div className="mt-2 flex items-center gap-1 font-mono text-[10.5px] text-ink-500">
+                <span className="text-ink-400">{kpi.preScore}{kpi.unit}</span>
+                <span className="text-ink-300">→</span>
+                <span className="text-ink-900 font-medium">{kpi.postScore}{kpi.unit}</span>
               </div>
+
+              {/* Paired count — show when partial */}
+              {kpi.nTotal > 0 && kpi.n < kpi.nTotal && (
+                <p className="font-mono text-[9px] text-ink-400 mt-1 uppercase tracking-wide">
+                  n={kpi.n} of {kpi.nTotal} paired
+                </p>
+              )}
             </>
-          ) : (
+          ) : kpi.awaitingDay28 ? (
             <div>
               <p className="font-serif text-[28px] text-ink-400">—</p>
-              <p className="font-mono text-[9px] text-ink-300 mt-1 uppercase tracking-wide">Awaiting discharge data</p>
+              <p className="font-mono text-[9px] text-ink-300 mt-1 uppercase tracking-wide">Awaiting Day 28 data</p>
             </div>
+          ) : (
+            <EmptyState message="No data" />
           )}
 
           <Sparkline color={SPARKLINE_COLORS[i] ?? '#9333EA'} improvement={kpi.improvement} />

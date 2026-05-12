@@ -80,17 +80,25 @@ export interface MeasureKpi {
   maxScore: number
   unit: string
   higherIsBetter: boolean
-  n: number
+  n: number          // patients with paired W1+W4
+  nTotal: number     // total patients in cohort
   hasData: boolean
+  awaitingDay28: boolean  // true if cohort has W1 but no W4 at all
 }
 
 export function getMeasureKpis(patients: Patient[]): MeasureKpi[] {
+  const nTotal  = patients.length
+
   const withBoth = patients.filter(
     p =>
       p.assessments.some(a => a.timepoint === 'intake') &&
       p.assessments.some(a => a.timepoint === 'day28')
   )
   const n = withBoth.length
+
+  const hasW1  = patients.some(p => p.assessments.some(a => a.timepoint === 'intake'))
+  const hasW4  = patients.some(p => p.assessments.some(a => a.timepoint === 'day28'))
+  const awaitingDay28 = hasW1 && !hasW4
 
   const gad7Pre  = cohortMean(withBoth, 'intake', 'gad7')
   const gad7Post = cohortMean(withBoth, 'day28',  'gad7')
@@ -101,93 +109,74 @@ export function getMeasureKpis(patients: Patient[]): MeasureKpi[] {
   const topsPre  = cohortMean(withBoth, 'intake', 'topsDays')
   const topsPost = cohortMean(withBoth, 'day28',  'topsDays')
 
-  // TEA mean across all four domains
-  const teaPreArr: number[] = []
+  // TEA mean across all four intake domains (uses intake only for TEA)
+  const teaPreArr: number[]  = []
   const teaPostArr: number[] = []
   for (const p of withBoth) {
     const ai = p.assessments.find(a => a.timepoint === 'intake')
     const ad = p.assessments.find(a => a.timepoint === 'day28')
     if (ai && ad) {
-      const pre = [ai.teaSubstance, ai.teaHealth, ai.teaLifestyle, ai.teaCommunity].filter(
-        (v): v is number => v !== undefined && Number.isFinite(v)
-      )
-      const post = [ad.teaSubstance, ad.teaHealth, ad.teaLifestyle, ad.teaCommunity].filter(
-        (v): v is number => v !== undefined && Number.isFinite(v)
-      )
+      const pre  = [ai.teaSubstance, ai.teaHealth, ai.teaLifestyle, ai.teaCommunity]
+        .filter((v): v is number => v !== undefined && Number.isFinite(v))
+      const post = [ad.teaSubstance, ad.teaHealth, ad.teaLifestyle, ad.teaCommunity]
+        .filter((v): v is number => v !== undefined && Number.isFinite(v))
       if (pre.length && post.length) {
         teaPreArr.push(safeMean(pre))
         teaPostArr.push(safeMean(post))
       }
     }
   }
+  // Also accept TEA Avg column at intake (which maps to all four fields)
   const teaPre  = safeMean(teaPreArr)
   const teaPost = safeMean(teaPostArr)
 
+  const topsPaired = withBoth.filter(p =>
+    p.assessments.some(a => a.timepoint === 'intake' && a.topsDays !== undefined) &&
+    p.assessments.some(a => a.timepoint === 'day28'  && a.topsDays !== undefined)
+  ).length
+
   return [
     {
-      key: 'gad7',
-      label: 'GAD-7',
-      description: 'Anxiety severity',
+      key: 'gad7', label: 'GAD-7', description: 'Anxiety severity',
       preScore:    Math.round(gad7Pre  * 10) / 10,
       postScore:   Math.round(gad7Post * 10) / 10,
       improvement: Math.round(improvementPct(gad7Pre, gad7Post)),
-      maxScore: 21,
-      unit: '',
-      higherIsBetter: false,
-      n,
-      hasData: n > 0,
+      maxScore: 21, unit: '', higherIsBetter: false,
+      n, nTotal, hasData: n > 0, awaitingDay28,
     },
     {
-      key: 'phq9',
-      label: 'PHQ-9',
-      description: 'Depression',
+      key: 'phq9', label: 'PHQ-9', description: 'Depression',
       preScore:    Math.round(phq9Pre  * 10) / 10,
       postScore:   Math.round(phq9Post * 10) / 10,
       improvement: Math.round(improvementPct(phq9Pre, phq9Post)),
-      maxScore: 27,
-      unit: '',
-      higherIsBetter: false,
-      n,
-      hasData: n > 0,
+      maxScore: 27, unit: '', higherIsBetter: false,
+      n, nTotal, hasData: n > 0, awaitingDay28,
     },
     {
-      key: 'core10',
-      label: 'CORE-10',
-      description: 'Psych. distress',
+      key: 'core10', label: 'CORE-10', description: 'Psych. distress',
       preScore:    Math.round(c10Pre  * 10) / 10,
       postScore:   Math.round(c10Post * 10) / 10,
       improvement: Math.round(improvementPct(c10Pre, c10Post)),
-      maxScore: 40,
-      unit: '',
-      higherIsBetter: false,
-      n,
-      hasData: n > 0,
+      maxScore: 40, unit: '', higherIsBetter: false,
+      n, nTotal, hasData: n > 0, awaitingDay28,
     },
     {
-      key: 'tops',
-      label: 'TOPS',
-      description: 'Substance days / 28',
+      key: 'tops', label: 'TOPS', description: 'Substance days / 28',
       preScore:    Math.round(topsPre  * 10) / 10,
       postScore:   Math.round(topsPost * 10) / 10,
       improvement: Math.round(improvementPct(topsPre, topsPost)),
-      maxScore: 28,
-      unit: 'd',
-      higherIsBetter: false,
-      n: withBoth.filter(p => p.assessments.some(a => a.timepoint === 'intake' && a.topsDays !== undefined)).length,
-      hasData: topsPre > 0,
+      maxScore: 28, unit: 'd', higherIsBetter: false,
+      n: topsPaired, nTotal, hasData: topsPaired > 0,
+      awaitingDay28: hasW1 && topsPaired === 0,
     },
     {
-      key: 'tea',
-      label: 'TEA Mean',
-      description: '4-domain composite',
+      key: 'tea', label: 'TEA Mean', description: '4-domain composite',
       preScore:    Math.round(teaPre  * 10) / 10,
       postScore:   Math.round(teaPost * 10) / 10,
       improvement: Math.round(teaImprovementPct(teaPre, teaPost)),
-      maxScore: 10,
-      unit: '',
-      higherIsBetter: true,
-      n: teaPreArr.length,
-      hasData: teaPreArr.length > 0,
+      maxScore: 10, unit: '', higherIsBetter: true,
+      n: teaPreArr.length, nTotal, hasData: teaPreArr.length > 0,
+      awaitingDay28: false,
     },
   ]
 }
@@ -242,26 +231,37 @@ export interface TrajectoryPoint {
 }
 
 export function getTrajectoryData(patients: Patient[]): TrajectoryPoint[] {
-  const TPS: { tp: Timepoint; label: string }[] = [
+  // Primary timepoints always included; secondary only when data exists
+  const PRIMARY:   { tp: Timepoint; label: string }[] = [
     { tp: 'intake', label: 'Intake' },
-    { tp: 'day28',  label: '28 Days' },
-    { tp: '3m',     label: '3 Months' },
-    { tp: '6m',     label: '6 Months' },
-    { tp: '12m',    label: '12 Months' },
+    { tp: 'day28',  label: 'Day 28' },
   ]
-  return TPS.map(({ tp, label }) => {
+  const SECONDARY: { tp: Timepoint; label: string }[] = [
+    { tp: 'week2', label: 'Week 2' },
+    { tp: '3m',    label: '3 Months' },
+    { tp: '6m',    label: '6 Months' },
+    { tp: '12m',   label: '12 Months' },
+  ]
+
+  const ALL: { tp: Timepoint; label: string; primary: boolean }[] = [
+    ...PRIMARY.map(x => ({ ...x, primary: true })),
+    ...SECONDARY.map(x => ({ ...x, primary: false })),
+  ]
+
+  return ALL.flatMap(({ tp, label, primary }) => {
     const atTp = patients.filter(p => p.assessments.some(a => a.timepoint === tp))
     const n = atTp.length
-    if (!n) return { timepoint: tp, label, n: 0 }
-    return {
+    if (!n && !primary) return []   // skip secondary when no data
+    if (!n)             return [{ timepoint: tp, label, n: 0 }]
+    return [{
       timepoint: tp,
       label,
-      gad7:   Math.round(cohortMean(atTp, tp, 'gad7')   / 21 * 1000) / 10,
-      phq9:   Math.round(cohortMean(atTp, tp, 'phq9')   / 27 * 1000) / 10,
-      core10: Math.round(cohortMean(atTp, tp, 'core10') / 40 * 1000) / 10,
+      gad7:   Math.round(cohortMean(atTp, tp, 'gad7')     / 21 * 1000) / 10,
+      phq9:   Math.round(cohortMean(atTp, tp, 'phq9')     / 27 * 1000) / 10,
+      core10: Math.round(cohortMean(atTp, tp, 'core10')   / 40 * 1000) / 10,
       tops:   Math.round(cohortMean(atTp, tp, 'topsDays') / 28 * 1000) / 10,
       n,
-    }
+    }]
   })
 }
 
@@ -363,7 +363,7 @@ export function getSessionStats(patients: Patient[]) {
 export function getDemographics(patients: Patient[]) {
   const total = patients.length || 1
 
-  const ageBands = ['20-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100'] as const
+  const ageBands = ['18-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100'] as const
   const age = ageBands.map(band => ({
     band,
     count: patients.filter(p => p.ageBand === band).length,
@@ -422,4 +422,49 @@ export function oneToOneAttendancePct(patient: Patient): number {
   const oto = patient.sessions.find(s => s.type === '1:1')
   if (!oto || oto.scheduled === 0) return 0
   return (oto.attended / oto.scheduled) * 100
+}
+
+export interface DataCoverageRow {
+  label:  string
+  n:      number
+  pct:    number
+  primary: boolean  // primary timepoints get visual emphasis
+}
+
+/** How many patients have data at each timepoint pair */
+export function getDataCoverage(patients: Patient[]): DataCoverageRow[] {
+  const total = patients.length
+  if (!total) return []
+
+  const count = (tp: string) =>
+    patients.filter(p => p.assessments.some(a => a.timepoint === tp)).length
+
+  const nW1   = count('intake')
+  const nW4   = count('day28')
+  const nW1W4 = patients.filter(
+    p =>
+      p.assessments.some(a => a.timepoint === 'intake') &&
+      p.assessments.some(a => a.timepoint === 'day28')
+  ).length
+
+  const nWeek2 = count('week2')
+  const n3m    = count('3m')
+  const n6m    = count('6m')
+  const n12m   = count('12m')
+
+  const rows: DataCoverageRow[] = [
+    {
+      label:   'W1 + Day 28 paired',
+      n:       nW1W4,
+      pct:     total ? Math.round((nW1W4 / total) * 100) : 0,
+      primary: true,
+    },
+  ]
+
+  if (nWeek2 > 0) rows.push({ label: 'Plus Week 2 check-in', n: nWeek2, pct: Math.round((nWeek2 / total) * 100), primary: false })
+  if (n3m    > 0) rows.push({ label: 'Plus 3-month follow-up', n: n3m,  pct: Math.round((n3m    / total) * 100), primary: false })
+  if (n6m    > 0) rows.push({ label: 'Plus 6-month follow-up', n: n6m,  pct: Math.round((n6m    / total) * 100), primary: false })
+  if (n12m   > 0) rows.push({ label: 'Plus 12-month follow-up',n: n12m, pct: Math.round((n12m   / total) * 100), primary: false })
+
+  return rows
 }
